@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/CS421Proj1.iml" filepath="$PROJECT_DIR$/CS421Proj1.iml" />
+      <module fileurl="file://$USER_HOME$/Dropbox/CS421/stanford-corenlp-full-2018-02-27/CoreNLP.iml" filepath="$USER_HOME$/Dropbox/CS421/stanford-corenlp-full-2018-02-27/CoreNLP.iml" />
+    </modules>
+  </component>
+</project>
