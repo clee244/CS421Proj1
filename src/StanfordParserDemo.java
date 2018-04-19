@@ -1,3 +1,10 @@
+/*
+ * Project Part 1
+ * CS 421 @ University of Illinois at Chicago
+ * Christopher Lee - clee244
+ * Jared Donayre - jdonay2
+ * */
+
 import java.io.*;
 import java.util.*;
 import java.nio.file.Files;
@@ -49,7 +56,7 @@ public class StanfordParserDemo {
 	public static List<String> getPOSTags(String text)
 	{
 		Properties p = new Properties();
-		p.setProperty("annotators", "tokenize");
+		p.setProperty("annotators", "tokenize, ssplit, pos");
 		StanfordCoreNLP parser = new StanfordCoreNLP(p);
 		
 		Annotation doc = new Annotation(text);
@@ -112,11 +119,114 @@ public class StanfordParserDemo {
 		return temp;
 	}
 	
-	public static int getNumOfSpellingErrors(String text)
+    /* Takes in the number of spelling mistakes and assigns a score based on that number */
+
+    public static int getbScore(int numOfSpellingMistakes)
+    {
+        int temp = 0;
+
+        //Divide by 2 to account for words not being contained in the dictionary used(i.e. names not included and such)
+        if(numOfSpellingMistakes/2 > 80)
+        {
+            temp = 0;
+        }
+        else if(numOfSpellingMistakes/2 >= 60 && numOfSpellingMistakes/2 <= 80)
+        {
+            temp = 1;
+        }
+        else if(numOfSpellingMistakes/2 >= 40 && numOfSpellingMistakes/2 <= 60)
+        {
+            temp = 2;
+        }
+        else if(numOfSpellingMistakes/2 >= 20 && numOfSpellingMistakes/2 <= 40)
+        {
+            temp = 3;
+        }
+        else if(numOfSpellingMistakes/2 >= 0 && numOfSpellingMistakes/2 <= 20)
+        {
+            temp = 4;
+        }
+
+        return temp;
+    }
+
+    public static int getNumOfSpellingErrors(StringTokenizer tokens)
+    {
+        int numOfErrors = 0;
+        int check = 0;
+        String text = "";
+
+        String dictionary_path = "input/training/dictionary.txt";
+
+        //Reads bytes of file and converts to string
+        try {
+            text = new String(Files.readAllBytes(Paths.get(dictionary_path)));
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+
+        List<String> dictionaryTokens = getTokens(text);
+
+        for(int i = 0; i < tokens.countTokens(); i++)
+        {
+            for(String dictionaryToken: dictionaryTokens)
+            {
+                if(tokens.equals(dictionaryToken))
+                {
+                    check = 0;
+                    break;
+                }
+                check = 1;
+            }
+            if(check == 1)
+            {
+                numOfErrors++;
+            }
+            tokens.nextToken();
+            i++;
+        }
+
+        return numOfErrors;
+    }
+	
+	public static int getNumOfAgreementErrors(List<String> posTags)
 	{
-		int numOfErrors = 0;
+		int total = 0;
 		
-		return 0;
+		for(int i = 0; i < posTags.size(); i++) 
+		{
+			if(i + 1 < posTags.size() && posTags.get(i).equals("NN") && posTags.get(i + 1).equals("VBP"))
+				total = total + 1;
+			if(i + 1 < posTags.size() && posTags.get(i).equals("NNP") && posTags.get(i + 1).equals("VBP"))
+				total = total + 1;
+			if(i + 1 < posTags.size() && posTags.get(i).equals("NNS") && posTags.get(i + 1).equals("VBZ"))
+				total = total + 1;
+			if(i + 1 < posTags.size() && posTags.get(i).equals("NNS") && posTags.get(i + 1).equals("VBN"))
+				total = total + 1;
+			if(i + 1 < posTags.size() && posTags.get(i).equals("NNPS") && posTags.get(i + 1).equals("VBZ"))
+				total = total + 1;
+			if(i + 1 < posTags.size() && posTags.get(i).equals("NNPS") && posTags.get(i + 1).equals("VBN"))
+				total = total + 1;
+		}
+		
+		return total;
+	}
+	
+	public static int getCiScore(int numOfAgErrors)
+	{
+		int temp = 0;
+		if(numOfAgErrors == 0)
+			temp = 5;
+		if(numOfAgErrors == 1)
+			temp = 4;
+		if(numOfAgErrors == 2)
+			temp = 3;
+		if(numOfAgErrors == 3)
+			temp = 2;
+		if(numOfAgErrors == 4)
+			temp = 1;
+		
+		return temp;
 	}
 
     public static void main(String[] args) throws FileNotFoundException {
@@ -124,8 +234,8 @@ public class StanfordParserDemo {
         BufferedReader reader = null;
         String files;
 
-        String training_file_path = "../NLPDemo/input/training/essays/";
-        String results_file_path = "../NLPDemo/output/results.txt";
+        String training_file_path = "input/training/essays/";
+        String results_file_path = "output/results.txt";
         System.out.println("Opening a .txt at relative path " + training_file_path);
         
         File textFile = new File(training_file_path);
@@ -136,6 +246,8 @@ public class StanfordParserDemo {
         File[] listOfFiles = textFile.listFiles();
         
         int numOfSentences = 0;
+        int numOfSpellingMistakes = 0;
+        int numOfAgreementErrors = 0;
         int aScore    = 0;
         int bScore    = 0;
         int ciScore   = 0;
@@ -168,57 +280,29 @@ public class StanfordParserDemo {
             List<String> posTags = getPOSTags(text);
             List<String> sentences = getSentences(text);
             
+            //separate tokenizer that gets rid of symbols
+            StringTokenizer spellCheck = new StringTokenizer(text, " \t\n\r\f.,;:!?'");
+
             
             //Deals with scoring for number of sentences and length
             numOfSentences = sentences.size();
             aScore = getaScore(numOfSentences);
             
-            System.out.println(listOfFiles[i].getName());
-            System.out.println("This essay scored: " + aScore + " out of 5 for having " + numOfSentences + " sentences.");
+            //Deals with counting spelling mistakes
+            numOfSpellingMistakes = getNumOfSpellingErrors(spellCheck);
+            bScore = getbScore(numOfSpellingMistakes);
+            
+            //Deals with scoring for agreement errors
+            numOfAgreementErrors = getNumOfAgreementErrors(posTags);
+            ciScore = getCiScore(numOfAgreementErrors);
+
             
             finalScore = (2 * aScore) - bScore + ciScore + ciiScore + (2 * ciiiScore) + (2 * diScore);
             
             p.printf(listOfFiles[i].getName()+ ";" + aScore + ";" + bScore + ";" + ciScore + ";" + ciiScore + ";" + ciiiScore + ";" + diScore + ";" + finalScore + ";" +  ranking + "\n");
 
-            // TODO: add tokenizing to check length of essay, spellchecking, grammar checking, semantics(all as methods) and to implement a way to score them
-            /*
-            try {
-                reader = new BufferedReader(new FileReader(curFile));
-                String filecontents = null;
-                while ((filecontents = reader.readLine()) != null){
-                    System.out.println(filecontents);
-                }
-                reader.close();
-            } catch (FileNotFoundException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            } catch (IOException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }*/
-        }
-
-        // TODO: replace with actual result writing implementation
-        /*
-        //write results.txt to the output folder using relative path
-        BufferedWriter writer = null;
-        String results_file_path = "../CS421Proj1/output/results.txt";
-        System.out.println("Writing to results.txt file at relative path " + results_file_path);
-        File resultsFile = new File(results_file_path);
-        try {
-            writer = new BufferedWriter(new FileWriter(resultsFile));
-            String[] fileContents = new String[2];
-            fileContents[0] = "12345.txt;1;2;4;1;0;0;0;5;low\n";
-            fileContents[1] = "54321.txt;5;5;0;5;4;5;5;43;high";
-            for (String content : fileContents) {
-                writer.write(content);
-            }
-            writer.close();
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }*/
         
+        }
         p.close();
     }
 }
