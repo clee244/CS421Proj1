@@ -116,23 +116,23 @@ public class readFile {
         int temp = 0;
 
         //Divide by 2 to account for words not being contained in the dictionary used(i.e. names not included and such)
-        if(numOfSpellingMistakes/2 > 80)
+        if(numOfSpellingMistakes > 40)
         {
             temp = 0;
         }
-        else if(numOfSpellingMistakes/2 >= 60 && numOfSpellingMistakes/2 <= 80)
+        else if(numOfSpellingMistakes >= 30 && numOfSpellingMistakes <= 40)
         {
             temp = 1;
         }
-        else if(numOfSpellingMistakes/2 >= 40 && numOfSpellingMistakes/2 <= 60)
+        else if(numOfSpellingMistakes >= 20 && numOfSpellingMistakes <= 30)
         {
             temp = 2;
         }
-        else if(numOfSpellingMistakes/2 >= 20 && numOfSpellingMistakes/2 <= 40)
+        else if(numOfSpellingMistakes >= 10 && numOfSpellingMistakes <= 20)
         {
             temp = 3;
         }
-        else if(numOfSpellingMistakes/2 >= 0 && numOfSpellingMistakes/2 <= 20)
+        else if(numOfSpellingMistakes >= 0 && numOfSpellingMistakes <= 10)
         {
             temp = 4;
         }
@@ -140,7 +140,7 @@ public class readFile {
         return temp;
     }
 
-    public static int getNumOfSpellingErrors(StringTokenizer tokens)
+    public static int getNumOfSpellingErrors(List<String> tokens)
     {
         int numOfErrors = 0;
         int check = 0;
@@ -157,11 +157,15 @@ public class readFile {
 
         List<String> dictionaryTokens = getTokens(text);
 
-        for(int i = 0; i < tokens.countTokens(); i++)
+        for( String token : tokens)
         {
+            //System.out.println(tokens.nextToken());
             for(String dictionaryToken: dictionaryTokens)
             {
-                if(tokens.equals(dictionaryToken))
+                if(token.equals(dictionaryToken) || token.equals(".") || token.equals(",") ||
+                        token.equals(";") || token.equals(":") || token.equals("!") ||
+                        token.equals("?") || token.equals("(") || token.equals(")") ||
+                        token.equals("'s") || token.equals("'"))
                 {
                     check = 0;
                     break;
@@ -172,8 +176,6 @@ public class readFile {
             {
                 numOfErrors++;
             }
-            tokens.nextToken();
-            i++;
         }
 
         return numOfErrors;
@@ -239,16 +241,13 @@ public class readFile {
             List<String> posTags = getPOSTags(text);
             List<String> sentences = getSentences(text);
 
-            //separate tokenizer that gets rid of symbols
-            StringTokenizer spellCheck = new StringTokenizer(text, " \t\n\r\f.,;:!?'");
-
 
             //Deals with scoring for number of sentences and length
             numOfSentences = sentences.size();
             aScore = getaScore(numOfSentences);
 
             //Deals with counting spelling mistakes
-            numOfSpellingMistakes = getNumOfSpellingErrors(spellCheck);
+            numOfSpellingMistakes = getNumOfSpellingErrors(tokens);
             bScore = getbScore(numOfSpellingMistakes);
 
             //Deals with Agreement mistakes
