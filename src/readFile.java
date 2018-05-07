@@ -1,8 +1,16 @@
+/*
+ * Project Part 1
+ * CS 421 @ University of Illinois at Chicago
+ * Christopher Lee - clee244
+ * Jared Donayre - jdonay2
+ * */
+
 import java.io.*;
 import java.util.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.StringTokenizer;
+import java.lang.*;
+
 
 import edu.stanford.nlp.coref.CorefCoreAnnotations;
 import edu.stanford.nlp.coref.data.CorefChain;
@@ -23,6 +31,7 @@ import edu.stanford.nlp.util.CoreMap;
 
 public class readFile {
 
+    //Splits the Essay into (word) tokens
     public static List<String> getTokens(String text)
     {
         Properties p = new Properties();
@@ -45,10 +54,11 @@ public class readFile {
         return tokenList;
     }
 
+    //Splits the essay into (Tag) tokens
     public static List<String> getPOSTags(String text)
     {
         Properties p = new Properties();
-        p.setProperty("annotators", "tokenize");
+        p.setProperty("annotators", "tokenize, ssplit, pos");
         StanfordCoreNLP parser = new StanfordCoreNLP(p);
 
         Annotation doc = new Annotation(text);
@@ -67,6 +77,7 @@ public class readFile {
         return posList;
     }
 
+    //Splits the essays into their component sentences
     public static List<String> getSentences(String text)
     {
         Properties p = new Properties();
@@ -96,43 +107,44 @@ public class readFile {
         int temp = 0;
 
         if(numSentences >= 0 && numSentences < 10)
+            temp = 0;
+        else if(numSentences >= 10 && numSentences < 12)
             temp = 1;
-        else if(numSentences >= 10 && numSentences < 13)
+        else if(numSentences >= 12 && numSentences < 14)
             temp = 2;
-        else if(numSentences >= 13 && numSentences < 16)
+        else if(numSentences >= 14 && numSentences < 16)
             temp = 3;
-        else if(numSentences >= 16 && numSentences < 19)
+        else if(numSentences >= 16 && numSentences < 18)
             temp = 4;
-        else if(numSentences >= 19)
+        else if(numSentences >= 18)
             temp = 5;
 
         return temp;
     }
 
     /* Takes in the number of spelling mistakes and assigns a score based on that number */
-
     public static int getbScore(int numOfSpellingMistakes)
     {
         int temp = 0;
 
         //Divide by 2 to account for words not being contained in the dictionary used(i.e. names not included and such)
-        if(numOfSpellingMistakes > 40)
+        if(numOfSpellingMistakes/2 > 80)
         {
             temp = 0;
         }
-        else if(numOfSpellingMistakes >= 30 && numOfSpellingMistakes <= 40)
+        else if(numOfSpellingMistakes/2 >= 60 && numOfSpellingMistakes/2 <= 80)
         {
             temp = 1;
         }
-        else if(numOfSpellingMistakes >= 20 && numOfSpellingMistakes <= 30)
+        else if(numOfSpellingMistakes/2 >= 40 && numOfSpellingMistakes/2 <= 60)
         {
             temp = 2;
         }
-        else if(numOfSpellingMistakes >= 10 && numOfSpellingMistakes <= 20)
+        else if(numOfSpellingMistakes/2 >= 20 && numOfSpellingMistakes/2 <= 40)
         {
             temp = 3;
         }
-        else if(numOfSpellingMistakes >= 0 && numOfSpellingMistakes <= 10)
+        else if(numOfSpellingMistakes/2 >= 0 && numOfSpellingMistakes/2 <= 20)
         {
             temp = 4;
         }
@@ -140,13 +152,15 @@ public class readFile {
         return temp;
     }
 
+    /* Runs each (word) token through a list of words in a dictionary found online to check if the word exists
+      increments the total number of spelling mistakes if not. */
     public static int getNumOfSpellingErrors(List<String> tokens)
     {
         int numOfErrors = 0;
         int check = 0;
         String text = "";
 
-        String dictionary_path = "../CS421Proj1/input/training/dictionary.txt";
+        String dictionary_path = "../input/testing/dictionary.txt";
 
         //Reads bytes of file and converts to string
         try {
@@ -181,38 +195,68 @@ public class readFile {
         return numOfErrors;
     }
 
-    public static int getNumOfAgreementErrors(String text)
+    /* Check to see if the current tag is a subject, and mark as an error if the immediate tag after is an incorrect verb */
+    public static int getNumOfAgreementErrors(List<String> posTags)
+    {
+        int total = 0;
+
+        for(int i = 0; i < posTags.size(); i++)
+        {
+            //Check to see if following word is an adjective
+            if((posTags.get(i).equals("NN") || posTags.get(i).equals("NNP") || posTags.get(i).equals("NNS") || posTags.get(i).equals("BBPS")))
+            {
+                if(i + 1 < posTags.size() && posTags.get(i).equals("NN") && (posTags.get(i + 1).equals("VBP") || posTags.get(i + 1).equals("VBG")))
+                    total = total + 1;
+                if(i + 1 < posTags.size() && posTags.get(i).equals("NNP") && (posTags.get(i + 1).equals("VBP") || posTags.get(i + 1).equals("VBB")))
+                    total = total + 1;
+                if(i + 1 < posTags.size() && posTags.get(i).equals("NNS") && (posTags.get(i + 1).equals("VBZ") || posTags.get(i + 1).equals("VBN")))
+                    total = total + 1;
+                if(i + 1 < posTags.size() && posTags.get(i).equals("NNPS") && (posTags.get(i + 1).equals("VBZ") || posTags.get(i + 1).equals("VBN")))
+                    total = total + 1;
+            }
+        }
+        return total;
+    }
+
+    /* Take in the number of agreement mistakes and outputs the score */
+    public static int getCiScore(int numOfAgErrors)
     {
         int temp = 0;
+        if(numOfAgErrors == 0)
+            temp = 5;
+        if(numOfAgErrors == 1)
+            temp = 4;
+        if(numOfAgErrors == 2)
+            temp = 3;
+        if(numOfAgErrors == 3)
+            temp = 2;
+        if(numOfAgErrors == 4)
+            temp = 1;
 
-        List<String> tokens = getTokens(text);
-        List<String> posTags = getPOSTags(text);
-
-        for(int index = 0; index < tokens.size(); index++) {
-            String token = tokens.get(index);
-            String posTag = posTags.get(index);
-
-            System.out.print("[" + token + "/" + posTag + "] ");
-        }
         return temp;
     }
 
     public static void main(String[] args) throws FileNotFoundException {
+        //Load test.txt from the resources folder using relative path
+        BufferedReader reader = null;
         String files;
 
-        String training_file_path = "../CS421Proj1/input/training/essays/";
-        String results_file_path = "../CS421Proj1/output/results.txt";
-        System.out.println("Opening a .txt at relative path " + training_file_path);
+        //Open files paths to read and write in their respective folders
+        String testing_file_path = "../input/testing/essays/";
+        String results_file_path = "../output/results.txt";
+        System.out.println("Opening a .txt at relative path " + testing_file_path);
 
-        File textFile = new File(training_file_path);
+        File textFile = new File(testing_file_path);
         File resultsFile = new File(results_file_path);
 
         PrintWriter p = new PrintWriter(resultsFile);
 
         File[] listOfFiles = textFile.listFiles();
 
+        //initialize variables
         int numOfSentences = 0;
         int numOfSpellingMistakes = 0;
+        int numOfAgreementErrors = 0;
         int aScore    = 0;
         int bScore    = 0;
         int ciScore   = 0;
@@ -223,16 +267,21 @@ public class readFile {
         int finalScore = 0;
         String ranking = "unknown";
 
-        for (int i = 0; i < listOfFiles.length; i++) {
+        //Read each file within the folder
+        for (int i = 0; i < listOfFiles.length; i++)
+        {
             files = listOfFiles[i].getName();
-            String curFile = new String(training_file_path + File.separator + files);
+            String curFile = new String(testing_file_path + File.separator + files);
 
             String text = "";
 
             //Reads bytes of file and converts to string
-            try {
+            try
+            {
                 text = new String(Files.readAllBytes(Paths.get(curFile)));
-            } catch (IOException ex) {
+            }
+            catch(IOException ex)
+            {
                 ex.printStackTrace();
             }
 
@@ -240,6 +289,8 @@ public class readFile {
             List<String> tokens = getTokens(text);
             List<String> posTags = getPOSTags(text);
             List<String> sentences = getSentences(text);
+
+            //separate tokenizer that gets rid of symbols
 
 
             //Deals with scoring for number of sentences and length
@@ -250,15 +301,19 @@ public class readFile {
             numOfSpellingMistakes = getNumOfSpellingErrors(tokens);
             bScore = getbScore(numOfSpellingMistakes);
 
-            //Deals with Agreement mistakes
+            //Deals with scoring for agreement errors
+            numOfAgreementErrors = getNumOfAgreementErrors(posTags);
+            ciScore = getCiScore(numOfAgreementErrors);
 
-            System.out.println(listOfFiles[i].getName());
-            System.out.println("This essay scored: " + aScore + " out of 5 for having " + numOfSentences + " sentences.");
-            System.out.println("This essay scored: " + bScore + " out of 5 for having " + numOfSpellingMistakes + " spelling mistakes.");
+            /*various print statements for value checking*/
+
+            //System.out.println("Total agreement errors are: " + numOfAgreementErrors);
+            //System.out.println("Total spelling errors are: " + numOfSpellingMistakes);
+            //System.out.println("Total number of sentences are: " + numOfSentences);
 
             finalScore = (2 * aScore) - bScore + ciScore + ciiScore + (2 * ciiiScore) + (2 * diScore);
 
-            if(finalScore > 10)
+            if(finalScore > 5)
             {
                 ranking = "high";
             }
@@ -267,8 +322,8 @@ public class readFile {
                 ranking = "low";
             }
 
-            p.printf(listOfFiles[i].getName() + ";" + aScore + ";" + bScore + ";" + ciScore + ";" + ciiScore + ";"
-                    + ciiiScore + ";" + diScore + ";" + diiScore + ";" + finalScore + ";" + ranking + "\n");
+            //write the scoring of the respective file to results.txt
+            p.printf(listOfFiles[i].getName()+ ";" + aScore + ";" + bScore + ";" + ciScore + ";" + ciiScore + ";" + ciiiScore + ";" + diScore + ";" + finalScore + ";" +  ranking + "\n");
         }
         p.close();
     }
