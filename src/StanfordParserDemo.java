@@ -150,22 +150,12 @@ public class StanfordParserDemo {
         return temp;
     }
 
-    public static int getNumOfSpellingErrors(StringTokenizer tokens)
+    public static int getNumOfSpellingErrors(StringTokenizer tokens, List<String> dictionaryTokens)
     {
         int numOfErrors = 0;
         int check = 0;
         String text = "";
 
-        String dictionary_path = "input/training/dictionary.txt";
-
-        //Reads bytes of file and converts to string
-        try {
-            text = new String(Files.readAllBytes(Paths.get(dictionary_path)));
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }
-
-        List<String> dictionaryTokens = getTokens(text);
 
         for(int i = 0; i < tokens.countTokens(); i++)
         {
@@ -212,6 +202,36 @@ public class StanfordParserDemo {
 		return total;
 	}
 	
+	public static int getNumOfVerbErrors(List<String> sentences)
+	{
+		List<String> tempSentenceTags;
+		int tempNumOfErrors = 0;
+		int tempNumOfVerbs = 0;
+		int tempNumOfConjunctions = 0;
+		int tempVerbTenseErrors = 0;
+		
+		
+		for(String sen: sentences)
+		{
+			tempSentenceTags = getPOSTags(sen);
+			
+			for(String tag: tempSentenceTags)
+			{
+				if(tag.equals("VB") || tag.equals("VBD") || tag.equals("VBG") || tag.equals("VBN") || tag.equals("VBP") || tag.equals("VBZ"))
+					tempNumOfVerbs++;
+				if(tag.equals("CC"))
+					tempNumOfConjunctions++;
+				
+			}
+			
+			if(tempNumOfVerbs == 0 || (tempNumOfVerbs > 1 && tempNumOfConjunctions == 0))
+				tempNumOfErrors++;
+			
+			tempNumOfVerbs = 0;
+		}
+		return tempNumOfErrors;
+	}
+	
 	public static int getCiScore(int numOfAgErrors)
 	{
 		int temp = 0;
@@ -228,6 +248,24 @@ public class StanfordParserDemo {
 		
 		return temp;
 	}
+	
+	public static int getCiiScore(int numOfVerbErrors)
+	{
+		int temp = 0;
+		if(numOfVerbErrors == 0 || numOfVerbErrors == 1)
+			temp = 5;
+		if(numOfVerbErrors >= 2 && numOfVerbErrors <= 4)
+			temp = 4;
+		if(numOfVerbErrors >= 4 && numOfVerbErrors <= 6)
+			temp = 3;
+		if(numOfVerbErrors >= 6 && numOfVerbErrors <= 8)
+			temp = 2;
+		if(numOfVerbErrors >= 8 && numOfVerbErrors <= 10)
+			temp = 1;
+		
+		return temp;
+	}
+	
 
     public static void main(String[] args) throws FileNotFoundException {
         //Load test.txt from the resources folder using relative path
@@ -236,6 +274,7 @@ public class StanfordParserDemo {
 
         String training_file_path = "input/training/essays/";
         String results_file_path = "output/results.txt";
+        String dictionary_file_path = "input/training/dictionary.txt";        
         System.out.println("Opening a .txt at relative path " + training_file_path);
         
         File textFile = new File(training_file_path);
@@ -248,6 +287,7 @@ public class StanfordParserDemo {
         int numOfSentences = 0;
         int numOfSpellingMistakes = 0;
         int numOfAgreementErrors = 0;
+        int numOfVerbErrors = 0;
         int aScore    = 0;
         int bScore    = 0;
         int ciScore   = 0;
@@ -289,12 +329,23 @@ public class StanfordParserDemo {
             aScore = getaScore(numOfSentences);
             
             //Deals with counting spelling mistakes
-            numOfSpellingMistakes = getNumOfSpellingErrors(spellCheck);
-            bScore = getbScore(numOfSpellingMistakes);
+            //Reads bytes of file and converts to string
+            try {
+                String dictionaryText = new String(Files.readAllBytes(Paths.get(dictionary_file_path)));
+                List<String> dictionaryTokens = getTokens(dictionaryText);
+                numOfSpellingMistakes = getNumOfSpellingErrors(spellCheck, dictionaryTokens);
+                bScore = getbScore(numOfSpellingMistakes);
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
             
             //Deals with scoring for agreement errors
             numOfAgreementErrors = getNumOfAgreementErrors(posTags);
             ciScore = getCiScore(numOfAgreementErrors);
+            
+            //Deals with verb errors
+            numOfVerbErrors = getNumOfVerbErrors(sentences);
+            ciiScore = getCiiScore(numOfVerbErrors);
 
             
             finalScore = (2 * aScore) - bScore + ciScore + ciiScore + (2 * ciiiScore) + (2 * diScore);
